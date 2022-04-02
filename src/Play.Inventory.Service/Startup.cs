@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using Play.Common.Identity;
 using Play.Common.MassTransit;
 using Play.Common.MongoDb;
 using Play.Inventory.Service.Clients;
@@ -18,6 +19,7 @@ namespace Play.Inventory.Service
 {
     public class Startup
     {
+        private const string AllowedOriginSetting = "AllowedOrigin";
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -31,7 +33,8 @@ namespace Play.Inventory.Service
             services.AddMongo()
                 .AddMongoRepository<InventoryItem>("inventoryItems")
                 .AddMongoRepository<CatalogItem>("catalogItems")
-                .AddMassTransitWithRabbitMQ();
+                .AddMassTransitWithRabbitMQ()
+                .AddJwtBearerAuthentication();
 
             AddCatalogClient(services);
 
@@ -50,12 +53,20 @@ namespace Play.Inventory.Service
                 app.UseDeveloperExceptionPage();
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Play.Inventory.Service v1"));
+
+                app.UseCors(builder =>
+                {
+                    builder.WithOrigins(Configuration[AllowedOriginSetting])
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
             }
 
             app.UseHttpsRedirection();
 
             app.UseRouting();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
